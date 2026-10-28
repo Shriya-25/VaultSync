@@ -17,6 +17,12 @@ public class NodeDto {
     @JsonProperty("last_heartbeat")
     private OffsetDateTime lastHeartbeat;
 
+    @JsonProperty("is_simulated_down")
+    private Boolean isSimulatedDown = false;
+
+    @JsonProperty("replica_count")
+    private Long replicaCount = 0L;
+
     @JsonProperty("created_at")
     private OffsetDateTime createdAt;
 
@@ -25,12 +31,20 @@ public class NodeDto {
 
     public NodeDto(String id, String name, String endpoint, String storageDirectory,
                    String status, OffsetDateTime lastHeartbeat, OffsetDateTime createdAt) {
+        this(id, name, endpoint, storageDirectory, status, lastHeartbeat, false, 0L, createdAt);
+    }
+
+    public NodeDto(String id, String name, String endpoint, String storageDirectory,
+                   String status, OffsetDateTime lastHeartbeat, Boolean isSimulatedDown,
+                   Long replicaCount, OffsetDateTime createdAt) {
         this.id = id;
         this.name = name;
         this.endpoint = endpoint;
         this.storageDirectory = storageDirectory;
         this.status = status;
         this.lastHeartbeat = lastHeartbeat;
+        this.isSimulatedDown = isSimulatedDown != null ? isSimulatedDown : false;
+        this.replicaCount = replicaCount != null ? replicaCount : 0L;
         this.createdAt = createdAt;
     }
 
@@ -50,6 +64,11 @@ public class NodeDto {
         this.name = name;
     }
 
+    @JsonProperty("node_name")
+    public String getNodeName() {
+        return name;
+    }
+
     public String getEndpoint() {
         return endpoint;
     }
@@ -58,12 +77,22 @@ public class NodeDto {
         this.endpoint = endpoint;
     }
 
+    @JsonProperty("base_url")
+    public String getBaseUrl() {
+        return endpoint;
+    }
+
     public String getStorageDirectory() {
         return storageDirectory;
     }
 
     public void setStorageDirectory(String storageDirectory) {
         this.storageDirectory = storageDirectory;
+    }
+
+    @JsonProperty("storage_path")
+    public String getStoragePath() {
+        return storageDirectory;
     }
 
     public String getStatus() {
@@ -80,6 +109,27 @@ public class NodeDto {
 
     public void setLastHeartbeat(OffsetDateTime lastHeartbeat) {
         this.lastHeartbeat = lastHeartbeat;
+    }
+
+    @JsonProperty("last_heartbeat_at")
+    public OffsetDateTime getLastHeartbeatAt() {
+        return lastHeartbeat;
+    }
+
+    public Boolean getIsSimulatedDown() {
+        return isSimulatedDown;
+    }
+
+    public void setIsSimulatedDown(Boolean isSimulatedDown) {
+        this.isSimulatedDown = isSimulatedDown;
+    }
+
+    public Long getReplicaCount() {
+        return replicaCount;
+    }
+
+    public void setReplicaCount(Long replicaCount) {
+        this.replicaCount = replicaCount;
     }
 
     public OffsetDateTime getCreatedAt() {

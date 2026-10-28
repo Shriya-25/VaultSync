@@ -5,3 +5,4 @@ public class FileIntegrityException extends RuntimeException {
         super(message);
     }
 }
+

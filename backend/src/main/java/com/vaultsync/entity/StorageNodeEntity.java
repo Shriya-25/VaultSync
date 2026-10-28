@@ -26,6 +26,9 @@ public class StorageNodeEntity {
     @Column(name = "last_heartbeat")
     private OffsetDateTime lastHeartbeat;
 
+    @Column(name = "is_simulated_down")
+    private Boolean isSimulatedDown = false;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -96,6 +99,14 @@ public class StorageNodeEntity {
 
     public void setLastHeartbeat(OffsetDateTime lastHeartbeat) {
         this.lastHeartbeat = lastHeartbeat;
+    }
+
+    public Boolean getIsSimulatedDown() {
+        return isSimulatedDown != null ? isSimulatedDown : false;
+    }
+
+    public void setIsSimulatedDown(Boolean isSimulatedDown) {
+        this.isSimulatedDown = isSimulatedDown != null ? isSimulatedDown : false;
     }
 
     public OffsetDateTime getCreatedAt() {

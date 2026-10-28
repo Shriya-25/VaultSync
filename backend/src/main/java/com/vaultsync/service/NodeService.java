@@ -1,8 +1,12 @@
 package com.vaultsync.service;
 
 import com.vaultsync.dto.NodeDto;
+import com.vaultsync.entity.FileEntity;
+import com.vaultsync.entity.FileReplicaEntity;
 import com.vaultsync.entity.StorageNodeEntity;
 import com.vaultsync.exception.ResourceNotFoundException;
+import com.vaultsync.repository.FileReplicaRepository;
+import com.vaultsync.repository.FileRepository;
 import com.vaultsync.repository.StorageNodeRepository;
 import com.vaultsync.storagenode.StorageResultDto;
 import org.slf4j.Logger;
@@ -12,10 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -24,23 +25,31 @@ public class NodeService {
     private static final Logger log = LoggerFactory.getLogger(NodeService.class);
 
     private final StorageNodeRepository nodeRepository;
+    private final FileRepository fileRepository;
+    private final FileReplicaRepository replicaRepository;
     private final StorageNodeClient storageClient;
     private final OperationService operationService;
+    private final ReplicaRepairService repairService;
 
     public NodeService(StorageNodeRepository nodeRepository,
+                       FileRepository fileRepository,
+                       FileReplicaRepository replicaRepository,
                        StorageNodeClient storageClient,
-                       OperationService operationService) {
+                       OperationService operationService,
+                       ReplicaRepairService repairService) {
         this.nodeRepository = nodeRepository;
+        this.fileRepository = fileRepository;
+        this.replicaRepository = replicaRepository;
         this.storageClient = storageClient;
         this.operationService = operationService;
+        this.repairService = repairService;
     }
 
     /**
-     * Return all nodes, automatically probing live health to keep DB status fresh
+     * Return all nodes with live health and replica counts
      */
-    @Transactional
+    @Transactional(readOnly = true)
     public List<NodeDto> getAllNodes() {
-        refreshNodeStatuses();
         return nodeRepository.findAllByOrderByCreatedAtAsc().stream()
                 .map(this::toDto)
                 .collect(Collectors.toList());
@@ -54,25 +63,188 @@ public class NodeService {
     }
 
     /**
+     * Receive periodic heartbeat from a storage node
+     */
+    @Transactional
+    public Map<String, Object> processHeartbeat(String nodeId, Map<String, Object> payload) {
+        Optional<StorageNodeEntity> nodeOpt = nodeRepository.findById(nodeId);
+        if (nodeOpt.isEmpty()) {
+            return Map.of("status", "IGNORED", "reason", "Unknown node: " + nodeId);
+        }
+
+        StorageNodeEntity node = nodeOpt.get();
+        boolean wasUnavailable = "UNAVAILABLE".equalsIgnoreCase(node.getStatus());
+
+        // Update heartbeat timestamp
+        node.setLastHeartbeat(OffsetDateTime.now());
+
+        if (payload != null && payload.containsKey("storageDirectory") && payload.get("storageDirectory") != null) {
+            node.setStorageDirectory((String) payload.get("storageDirectory"));
+        }
+
+        // If not simulated down, restore to HEALTHY if it was previously UNAVAILABLE
+        if (!Boolean.TRUE.equals(node.getIsSimulatedDown())) {
+            node.setStatus("HEALTHY");
+            nodeRepository.save(node);
+
+            if (wasUnavailable) {
+                String msg = String.format("Storage node [%s] reconnected via heartbeat. Restored to HEALTHY.", node.getName());
+                operationService.logOperation("NODE_RECOVERED", null, nodeId, "SUCCESS", msg);
+                log.info("{}", msg);
+
+                // Trigger automated replica repair for this node
+                repairService.repairNodeReplicas(nodeId);
+            }
+        } else {
+            nodeRepository.save(node);
+        }
+
+        return Map.of(
+                "status", "ACK",
+                "nodeId", nodeId,
+                "nodeStatus", node.getStatus(),
+                "timestamp", OffsetDateTime.now()
+        );
+    }
+
+    /**
+     * Periodic monitor check: identify heartbeats older than timeoutSeconds and mark nodes UNAVAILABLE
+     */
+    @Transactional
+    public void checkHeartbeatsAndFailures(long timeoutSeconds) {
+        List<StorageNodeEntity> nodes = nodeRepository.findAll();
+        OffsetDateTime threshold = OffsetDateTime.now().minusSeconds(timeoutSeconds);
+
+        for (StorageNodeEntity node : nodes) {
+            // Check if simulated down
+            if (Boolean.TRUE.equals(node.getIsSimulatedDown())) {
+                if (!"UNAVAILABLE".equalsIgnoreCase(node.getStatus())) {
+                    setNodeUnavailable(node, "Node manually simulated down (Demo Fault Injection)");
+                }
+                continue;
+            }
+
+            // Probe live health and check last heartbeat
+            Map<String, Object> live = storageClient.checkNodeHealth(node.getEndpoint());
+            boolean isLive = live != null && "HEALTHY".equalsIgnoreCase((String) live.get("status"));
+            boolean isTimedOut = node.getLastHeartbeat() == null || node.getLastHeartbeat().isBefore(threshold);
+
+            if (!isLive || isTimedOut) {
+                if ("HEALTHY".equalsIgnoreCase(node.getStatus())) {
+                    String reason = !isLive
+                            ? String.format("Endpoint [%s] unreachable", node.getEndpoint())
+                            : String.format("Heartbeat timed out (>%ds)", timeoutSeconds);
+                    setNodeUnavailable(node, reason);
+                }
+            } else {
+                // Node is live and heartbeat is fresh
+                if ("UNAVAILABLE".equalsIgnoreCase(node.getStatus())) {
+                    node.setStatus("HEALTHY");
+                    node.setLastHeartbeat(OffsetDateTime.now());
+                    nodeRepository.save(node);
+
+                    String msg = String.format("Storage node [%s] verified responsive. Restored to HEALTHY. Triggering replica repair...", node.getName());
+                    operationService.logOperation("NODE_RECOVERED", null, node.getId(), "SUCCESS", msg);
+                    log.info("{}", msg);
+
+                    repairService.repairNodeReplicas(node.getId());
+                }
+            }
+        }
+    }
+
+    private void setNodeUnavailable(StorageNodeEntity node, String reason) {
+        node.setStatus("UNAVAILABLE");
+        nodeRepository.save(node);
+
+        // Mark replicas on this node as UNAVAILABLE
+        List<FileReplicaEntity> replicas = replicaRepository.findByNodeId(node.getId());
+        for (FileReplicaEntity replica : replicas) {
+            replica.setStatus("UNAVAILABLE");
+            replicaRepository.save(replica);
+        }
+
+        // Update affected files status to DEGRADED or FAILED
+        List<FileEntity> allFiles = fileRepository.findAllWithReplicas();
+        for (FileEntity file : allFiles) {
+            boolean hasReplicaOnThisNode = file.getReplicas().stream()
+                    .anyMatch(r -> r.getNode().getId().equals(node.getId()));
+            if (hasReplicaOnThisNode) {
+                long availableCount = file.getReplicas().stream()
+                        .filter(r -> "AVAILABLE".equalsIgnoreCase(r.getStatus()))
+                        .count();
+                if (availableCount > 0) {
+                    file.setStatus("DEGRADED");
+                } else {
+                    file.setStatus("FAILED");
+                }
+                fileRepository.save(file);
+            }
+        }
+
+        String msg = String.format("Storage node [%s] became UNAVAILABLE (%s). Replicas marked degraded.", node.getName(), reason);
+        operationService.logOperation("NODE_FAILURE_DETECTED", null, node.getId(), "WARNING", msg);
+        log.warn("{}", msg);
+    }
+
+    /**
+     * Demo Fault Injection: Simulate node failure
+     */
+    @Transactional
+    public NodeDto simulateNodeFailure(String nodeId) {
+        StorageNodeEntity node = nodeRepository.findById(nodeId)
+                .orElseThrow(() -> new ResourceNotFoundException("StorageNode", "id", nodeId));
+
+        node.setIsSimulatedDown(true);
+        nodeRepository.save(node);
+
+        setNodeUnavailable(node, "Demo Fault Injection (Simulate Failure)");
+
+        operationService.logOperation(
+                "SIMULATED_FAILURE",
+                null,
+                nodeId,
+                "WARNING",
+                String.format("Demo Control: Storage node [%s] simulated as UNAVAILABLE. Replicas marked DEGRADED.", node.getName())
+        );
+
+        return toDto(node);
+    }
+
+    /**
+     * Demo Fault Injection: Restore simulated node
+     */
+    @Transactional
+    public NodeDto simulateNodeRecovery(String nodeId) {
+        StorageNodeEntity node = nodeRepository.findById(nodeId)
+                .orElseThrow(() -> new ResourceNotFoundException("StorageNode", "id", nodeId));
+
+        node.setIsSimulatedDown(false);
+        node.setStatus("HEALTHY");
+        node.setLastHeartbeat(OffsetDateTime.now());
+        nodeRepository.save(node);
+
+        operationService.logOperation(
+                "SIMULATED_RECOVERY",
+                null,
+                nodeId,
+                "SUCCESS",
+                String.format("Demo Control: Storage node [%s] restored to HEALTHY. Triggering replica repair...", node.getName())
+        );
+
+        // Repair missing or degraded replicas
+        repairService.repairNodeReplicas(nodeId);
+
+        return toDto(node);
+    }
+
+    /**
      * Actively probe each registered node, update status and heartbeat, and persist to PostgreSQL
      */
     @Transactional
     public List<NodeDto> refreshNodeStatuses() {
-        List<StorageNodeEntity> nodes = nodeRepository.findAllByOrderByCreatedAtAsc();
-        for (StorageNodeEntity node : nodes) {
-            Map<String, Object> health = storageClient.checkNodeHealth(node.getEndpoint());
-            if (health != null && "HEALTHY".equalsIgnoreCase((String) health.get("status"))) {
-                node.setStatus("HEALTHY");
-                node.setLastHeartbeat(OffsetDateTime.now());
-                if (health.containsKey("storageDirectory") && health.get("storageDirectory") != null) {
-                    node.setStorageDirectory((String) health.get("storageDirectory"));
-                }
-            } else {
-                node.setStatus("UNAVAILABLE");
-            }
-            nodeRepository.save(node);
-        }
-        return nodes.stream().map(this::toDto).collect(Collectors.toList());
+        checkHeartbeatsAndFailures(10);
+        return getAllNodes();
     }
 
     /**
@@ -93,7 +265,6 @@ public class NodeService {
         testReport.put("testStorageKey", testKey);
         testReport.put("payloadSizeBytes", payload.length);
 
-        // Step 1: Write file to node
         StorageResultDto storeResult = storageClient.storeFile(
                 node.getEndpoint(),
                 testKey,
@@ -114,7 +285,6 @@ public class NodeService {
         testReport.put("writeSuccess", true);
         testReport.put("storedChecksum", storeResult.getSha256Checksum());
 
-        // Step 2: Read file back from node and verify byte integrity
         byte[] readBack = storageClient.retrieveFile(node.getEndpoint(), testKey);
         if (readBack == null || readBack.length != payload.length) {
             testReport.put("success", false);
@@ -128,12 +298,10 @@ public class NodeService {
         testReport.put("readSuccess", true);
         testReport.put("readSizeBytes", readBack.length);
 
-        // Step 3: Delete probe test file
         boolean deleted = storageClient.deleteFile(node.getEndpoint(), testKey);
         testReport.put("cleanupSuccess", deleted);
         testReport.put("success", true);
 
-        // Log successful verification in PostgreSQL
         operationService.logOperation(
                 "NODE_VERIFICATION",
                 null,
@@ -148,6 +316,7 @@ public class NodeService {
 
     public NodeDto toDto(StorageNodeEntity entity) {
         if (entity == null) return null;
+        long replicaCount = replicaRepository.countByNodeIdAndStatus(entity.getId(), "AVAILABLE");
         return new NodeDto(
                 entity.getId(),
                 entity.getName(),
@@ -155,6 +324,8 @@ public class NodeService {
                 entity.getStorageDirectory(),
                 entity.getStatus(),
                 entity.getLastHeartbeat(),
+                entity.getIsSimulatedDown(),
+                replicaCount,
                 entity.getCreatedAt()
         );
     }

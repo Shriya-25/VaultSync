@@ -118,3 +118,4 @@ public class RecoveryResultDto {
         this.message = message;
     }
 }
+

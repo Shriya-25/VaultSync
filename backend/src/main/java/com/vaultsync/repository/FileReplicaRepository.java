@@ -13,4 +13,10 @@ public interface FileReplicaRepository extends JpaRepository<FileReplicaEntity, 
     List<FileReplicaEntity> findByFileId(String fileId);
 
     Optional<FileReplicaEntity> findByFileIdAndNodeId(String fileId, String nodeId);
+
+    List<FileReplicaEntity> findByNodeId(String nodeId);
+
+    long countByNodeId(String nodeId);
+
+    long countByNodeIdAndStatus(String nodeId, String status);
 }

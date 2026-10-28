@@ -2,6 +2,7 @@ package com.vaultsync.controller;
 
 import com.vaultsync.dto.NodeDto;
 import com.vaultsync.service.NodeService;
+import com.vaultsync.service.ReplicaRepairService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,15 +14,16 @@ import java.util.Map;
 public class NodeController {
 
     private final NodeService nodeService;
+    private final ReplicaRepairService repairService;
 
-    public NodeController(NodeService nodeService) {
+    public NodeController(NodeService nodeService, ReplicaRepairService repairService) {
         this.nodeService = nodeService;
+        this.repairService = repairService;
     }
 
     /**
      * GET /api/nodes
-     * Returns the registered storage-node records from the database.
-     * Probes live health to keep PostgreSQL records updated.
+     * Returns the registered storage-node records from PostgreSQL with live statuses.
      */
     @GetMapping
     public ResponseEntity<List<NodeDto>> getAllNodes() {
@@ -40,13 +42,59 @@ public class NodeController {
     }
 
     /**
+     * POST /api/nodes/{id}/heartbeat
+     * Receives heartbeat pulse sent from a storage node worker.
+     */
+    @PostMapping("/{id}/heartbeat")
+    public ResponseEntity<Map<String, Object>> receiveHeartbeat(
+            @PathVariable String id,
+            @RequestBody(required = false) Map<String, Object> payload
+    ) {
+        Map<String, Object> response = nodeService.processHeartbeat(id, payload);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * POST /api/nodes/{id}/simulate-failure
+     * Demo Control: Simulates storage node failure for classroom demonstration.
+     */
+    @PostMapping("/{id}/simulate-failure")
+    public ResponseEntity<NodeDto> simulateFailure(@PathVariable String id) {
+        NodeDto updated = nodeService.simulateNodeFailure(id);
+        return ResponseEntity.ok(updated);
+    }
+
+    /**
+     * POST /api/nodes/{id}/simulate-recovery
+     * Demo Control: Restores a simulated storage node and triggers automated replica repair.
+     */
+    @PostMapping("/{id}/simulate-recovery")
+    public ResponseEntity<NodeDto> simulateRecovery(@PathVariable String id) {
+        NodeDto updated = nodeService.simulateNodeRecovery(id);
+        return ResponseEntity.ok(updated);
+    }
+
+    /**
      * POST /api/nodes/check
-     * Actively probes both Node A and Node B and updates PostgreSQL status and heartbeat.
+     * Actively checks heartbeat timeouts and node reachability.
      */
     @PostMapping("/check")
     public ResponseEntity<List<NodeDto>> checkNodes() {
         List<NodeDto> updatedNodes = nodeService.refreshNodeStatuses();
         return ResponseEntity.ok(updatedNodes);
+    }
+
+    /**
+     * POST /api/nodes/repair
+     * Triggers an immediate replica repair sweep across all degraded files.
+     */
+    @PostMapping("/repair")
+    public ResponseEntity<Map<String, Object>> triggerRepair() {
+        int repairedCount = repairService.repairAllDegradedFiles();
+        return ResponseEntity.ok(Map.of(
+                "repairedFiles", repairedCount,
+                "message", String.format("Repaired replicas for %d degraded file(s)", repairedCount)
+        ));
     }
 
     /**
