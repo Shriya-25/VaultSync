@@ -7,7 +7,9 @@ frontend/dist/
 backend/target/
 *.class
 
-# IDE & OS
+# Environment & Secrets
+.env
+*.env.local
 .idea/
 .vscode/
 *.iml
