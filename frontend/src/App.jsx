@@ -53,8 +53,12 @@ export default function App() {
       } else {
         await apiService.simulateNodeRecovery(nodeId);
       }
-      const updatedNodes = await apiService.getNodes();
+      const [updatedNodes, updatedFiles] = await Promise.all([
+        apiService.getNodes(),
+        apiService.getFiles(),
+      ]);
       setNodes(updatedNodes);
+      setFiles(updatedFiles);
     } catch (err) {
       console.error('Simulation error:', err);
     } finally {
