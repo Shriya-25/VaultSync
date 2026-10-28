@@ -7,6 +7,9 @@ frontend/dist/
 backend/target/
 *.class
 
+# Distributed Node Storage
+storage/
+
 # Environment & Secrets
 .env
 *.env.local
