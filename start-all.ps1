@@ -74,3 +74,4 @@ Write-Host "  * Storage Node A:      http://localhost:8081/api/health" -Foregrou
 Write-Host "  * Storage Node B:      http://localhost:8082/api/health" -ForegroundColor White
 Write-Host "  * PostgreSQL Database: localhost:5432/vaultsync`n" -ForegroundColor White
 Write-Host "To stop all services, run: .\stop-all.ps1`n" -ForegroundColor Yellow
+

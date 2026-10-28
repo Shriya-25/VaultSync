@@ -34,3 +34,4 @@ foreach ($port in $targetPorts) {
 }
 
 Write-Host "`nAll VaultSync cluster processes stopped successfully.`n" -ForegroundColor Green
+
