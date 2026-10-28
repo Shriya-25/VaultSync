@@ -23,6 +23,9 @@ public class FileDto {
 
     private String status;
 
+    @JsonProperty("last_recovery_result")
+    private String lastRecoveryResult;
+
     @JsonProperty("created_at")
     private OffsetDateTime createdAt;
 
@@ -33,12 +36,19 @@ public class FileDto {
 
     public FileDto(String id, String originalFilename, Long sizeBytes, String mimeType,
                    String sha256Checksum, String status, OffsetDateTime createdAt, List<ReplicaDto> replicas) {
+        this(id, originalFilename, sizeBytes, mimeType, sha256Checksum, status, "UNTESTED", createdAt, replicas);
+    }
+
+    public FileDto(String id, String originalFilename, Long sizeBytes, String mimeType,
+                   String sha256Checksum, String status, String lastRecoveryResult,
+                   OffsetDateTime createdAt, List<ReplicaDto> replicas) {
         this.id = id;
         this.originalFilename = originalFilename;
         this.sizeBytes = sizeBytes;
         this.mimeType = mimeType;
         this.sha256Checksum = sha256Checksum;
         this.status = status;
+        this.lastRecoveryResult = lastRecoveryResult != null ? lastRecoveryResult : "UNTESTED";
         this.createdAt = createdAt;
         this.replicas = replicas != null ? replicas : new ArrayList<>();
     }
@@ -89,6 +99,19 @@ public class FileDto {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    @JsonProperty("backup_status")
+    public String getBackupStatus() {
+        return status;
+    }
+
+    public String getLastRecoveryResult() {
+        return lastRecoveryResult;
+    }
+
+    public void setLastRecoveryResult(String lastRecoveryResult) {
+        this.lastRecoveryResult = lastRecoveryResult;
     }
 
     public OffsetDateTime getCreatedAt() {

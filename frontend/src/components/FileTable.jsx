@@ -150,7 +150,11 @@ export default function FileTable({ files, nodes, onRecover, isRecovering }) {
                         {file.replicas && file.replicas.map((rep, idx) => {
                           const node = nodes.find((n) => n.id === rep.node_id);
                           const isUp = node ? node.status === 'HEALTHY' : true;
-                          const nodeLabel = rep.node_name.replace('Storage Node ', '').replace('Node ', '');
+                          const nodeLabel = (rep.node_name || rep.node_id || '')
+                            .replace('Storage Node ', '')
+                            .replace('Node ', '')
+                            .replace('node-', '')
+                            .toUpperCase();
 
                           return (
                             <span

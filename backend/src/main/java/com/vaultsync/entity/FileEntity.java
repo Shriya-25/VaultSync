@@ -30,6 +30,9 @@ public class FileEntity {
     @Column(name = "status", length = 30, nullable = false)
     private String status;
 
+    @Column(name = "last_recovery_result", length = 100)
+    private String lastRecoveryResult = "UNTESTED";
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -47,6 +50,7 @@ public class FileEntity {
         this.mimeType = mimeType;
         this.sha256Checksum = sha256Checksum;
         this.status = status;
+        this.lastRecoveryResult = "UNTESTED";
         this.createdAt = createdAt != null ? createdAt : OffsetDateTime.now();
     }
 
@@ -103,6 +107,14 @@ public class FileEntity {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getLastRecoveryResult() {
+        return lastRecoveryResult;
+    }
+
+    public void setLastRecoveryResult(String lastRecoveryResult) {
+        this.lastRecoveryResult = lastRecoveryResult;
     }
 
     public OffsetDateTime getCreatedAt() {

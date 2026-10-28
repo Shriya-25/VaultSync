@@ -71,10 +71,11 @@ export default function FileUpload({ onUploadSuccess, nodes }) {
     setFeedback(null);
 
     try {
-      const filePayload = selectedFile.realFile || {
-        name: selectedFile.name,
-        size: selectedFile.size,
-      };
+      const filePayload = selectedFile.realFile || new File(
+        [new Blob(["VaultSync sample project report content for DCS backup demonstration.\nDistributed Cloud Backup & Disaster Recovery System.\n"])],
+        selectedFile.name,
+        { type: "application/pdf" }
+      );
 
       await onUploadSuccess(filePayload);
       setFeedback({

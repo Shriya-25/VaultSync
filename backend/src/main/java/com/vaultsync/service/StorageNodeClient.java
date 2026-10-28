@@ -9,6 +9,7 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.Duration;
 import java.util.Map;
@@ -55,11 +56,12 @@ public class StorageNodeClient {
      */
     public StorageResultDto storeFile(String endpoint, String storageKey, byte[] content,
                                       String originalFilename, String mimeType) {
-        String url = String.format("%s/api/storage/files/raw?storageKey=%s&filename=%s&mimeType=%s",
-                normalizeEndpoint(endpoint),
-                storageKey,
-                originalFilename != null ? originalFilename : storageKey,
-                mimeType != null ? mimeType : "application/octet-stream");
+        String url = UriComponentsBuilder.fromHttpUrl(normalizeEndpoint(endpoint) + "/api/storage/files/raw")
+                .queryParam("storageKey", storageKey)
+                .queryParam("filename", originalFilename != null ? originalFilename : storageKey)
+                .queryParam("mimeType", mimeType != null ? mimeType : "application/octet-stream")
+                .encode()
+                .toUriString();
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
@@ -83,16 +85,27 @@ public class StorageNodeClient {
      * Retrieve file bytes from remote storage node
      */
     public byte[] retrieveFile(String endpoint, String storageKey) {
+        StorageRetrievalResult result = retrieveFileWithMetadata(endpoint, storageKey);
+        return result.isSuccess() ? result.getContent() : null;
+    }
+
+    /**
+     * Retrieve file bytes and response metadata from remote storage node
+     */
+    public StorageRetrievalResult retrieveFileWithMetadata(String endpoint, String storageKey) {
         String url = normalizeEndpoint(endpoint) + "/api/storage/files/" + storageKey;
         try {
             ResponseEntity<byte[]> response = restTemplate.getForEntity(url, byte[].class);
-            if (response.getStatusCode().is2xxSuccessful()) {
-                return response.getBody();
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                String checksum = response.getHeaders().getFirst("X-Checksum-SHA256");
+                String nodeId = response.getHeaders().getFirst("X-Storage-Node-Id");
+                return new StorageRetrievalResult(true, response.getBody(), checksum, nodeId, null);
             }
         } catch (Exception e) {
-            log.error("Failed to retrieve file [{}] from node [{}]: {}", storageKey, endpoint, e.getMessage());
+            log.warn("Failed to retrieve file [{}] from node [{}]: {}", storageKey, endpoint, e.getMessage());
+            return new StorageRetrievalResult(false, null, null, null, e.getMessage());
         }
-        return null;
+        return new StorageRetrievalResult(false, null, null, null, "Empty response from storage node");
     }
 
     /**
@@ -132,5 +145,44 @@ public class StorageNodeClient {
         if (endpoint == null) return "http://localhost:8081";
         return endpoint.endsWith("/") ? endpoint.substring(0, endpoint.length() - 1) : endpoint;
     }
-}
 
+    /**
+     * Structured result for remote storage retrieval
+     */
+    public static class StorageRetrievalResult {
+        private final boolean success;
+        private final byte[] content;
+        private final String checksum;
+        private final String nodeId;
+        private final String errorMessage;
+
+        public StorageRetrievalResult(boolean success, byte[] content, String checksum,
+                                      String nodeId, String errorMessage) {
+            this.success = success;
+            this.content = content;
+            this.checksum = checksum;
+            this.nodeId = nodeId;
+            this.errorMessage = errorMessage;
+        }
+
+        public boolean isSuccess() {
+            return success;
+        }
+
+        public byte[] getContent() {
+            return content;
+        }
+
+        public String getChecksum() {
+            return checksum;
+        }
+
+        public String getNodeId() {
+            return nodeId;
+        }
+
+        public String getErrorMessage() {
+            return errorMessage;
+        }
+    }
+}
