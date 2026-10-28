@@ -11,8 +11,8 @@ export default function AmbientGlow() {
     currentY: typeof window !== 'undefined' ? 260 : 0,
     targetX: typeof window !== 'undefined' ? window.innerWidth / 2 : 0,
     targetY: typeof window !== 'undefined' ? 260 : 0,
-    currentOpacity: 0.95, // High baseline visibility
-    targetOpacity: 0.95,
+    currentOpacity: 0.18, // Mostly black when idle with faint ambient tint
+    targetOpacity: 0.18,
   });
 
   useEffect(() => {
@@ -35,33 +35,33 @@ export default function AmbientGlow() {
     const handlePointerMove = (e) => {
       state.targetX = e.clientX;
       state.targetY = e.clientY;
-      state.targetOpacity = 1.0; // Peak vibrant brightness while active
+      state.targetOpacity = 0.70; // Noticeable medium-intensity olive glow while moving
 
       if (idleTimeoutRef.current) {
         clearTimeout(idleTimeoutRef.current);
       }
 
-      // Smoothly settles to a clearly visible resting glow
+      // Gentle fade down when the cursor stops, keeping background mostly black
       idleTimeoutRef.current = setTimeout(() => {
-        state.targetOpacity = 0.92;
-      }, 1000);
+        state.targetOpacity = 0.18;
+      }, 500);
     };
 
     const handlePointerLeave = () => {
-      state.targetOpacity = 0.75;
+      state.targetOpacity = 0.08;
     };
 
     window.addEventListener('pointermove', handlePointerMove, { passive: true });
     document.addEventListener('mouseleave', handlePointerLeave);
 
     const animate = () => {
-      // Fluid, natural momentum lag
-      const lerpFactor = 0.08;
+      // Fluid cursor following with a slight delay
+      const lerpFactor = 0.065;
       state.currentX += (state.targetX - state.currentX) * lerpFactor;
       state.currentY += (state.targetY - state.currentY) * lerpFactor;
 
-      // Smooth opacity transitions
-      state.currentOpacity += (state.targetOpacity - state.currentOpacity) * 0.05;
+      // Gentle, smooth opacity transitions
+      state.currentOpacity += (state.targetOpacity - state.currentOpacity) * 0.04;
 
       if (glowEl) {
         glowEl.style.transform = `translate3d(${state.currentX.toFixed(1)}px, ${state.currentY.toFixed(1)}px, 0) translate(-50%, -50%)`;

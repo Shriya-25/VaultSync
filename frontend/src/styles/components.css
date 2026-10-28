@@ -987,7 +987,7 @@
 }
 
 /* --------------------------------------------------------------------------
-   Ambient Cursor Glow (Fluid Background Spotlight - High Luminance & Visibility)
+   Ambient Cursor Glow (Concentrated Medium-Intensity Olive Spotlight)
    -------------------------------------------------------------------------- */
 .vs-ambient-glow-wrapper {
   position: fixed;
@@ -1000,33 +1000,31 @@
   contain: strict;
 }
 
-/* 1. Static atmospheric background glow */
+/* 1. Static atmospheric background glow (faint ambient tint, background mostly black) */
 .vs-static-ambient-glow {
   position: absolute;
   top: 15%;
   left: 50%;
-  width: 1300px;
-  height: 750px;
+  width: 900px;
+  height: 480px;
   transform: translate(-50%, -50%);
   background: radial-gradient(
-    circle at 50% 50%,
-    rgba(181, 217, 76, 0.48) 0%,
-    rgba(145, 185, 50, 0.32) 30%,
-    rgba(89, 107, 43, 0.18) 55%,
-    rgba(35, 43, 20, 0.08) 75%,
-    transparent 90%
+    ellipse 65% 45% at 50% 50%,
+    rgba(89, 107, 43, 0.12) 0%,
+    rgba(25, 29, 25, 0.05) 50%,
+    transparent 80%
   );
-  filter: blur(80px);
+  filter: blur(85px);
   pointer-events: none;
 }
 
-/* 2. Fluid cursor-following spotlight container */
+/* 2. Fluid cursor-following spotlight container (concentrated near cursor) */
 .vs-cursor-glow-spotlight {
   position: absolute;
   top: 0;
   left: 0;
-  width: 1200px;
-  height: 1200px;
+  width: 540px;
+  height: 540px;
   pointer-events: none;
   will-change: transform, opacity;
   display: flex;
@@ -1034,38 +1032,36 @@
   justify-content: center;
 }
 
-/* Layer 1: Wide circular aura with rich diffusion */
+/* Layer 1: Soft diffused outer aura in muted olive green (#596B2B) */
 .vs-glow-aura {
   position: absolute;
-  width: 1200px;
-  height: 1200px;
+  width: 540px;
+  height: 540px;
   border-radius: 50%;
   background: radial-gradient(
     circle at 50% 50%,
-    rgba(181, 217, 76, 0.68) 0%,
-    rgba(150, 195, 55, 0.48) 28%,
-    rgba(89, 107, 43, 0.28) 55%,
-    rgba(35, 43, 20, 0.12) 75%,
-    transparent 88%
+    rgba(89, 107, 43, 0.50) 0%,
+    rgba(89, 107, 43, 0.30) 35%,
+    rgba(25, 29, 25, 0.12) 65%,
+    transparent 80%
   );
-  filter: blur(70px);
+  filter: blur(55px);
 }
 
-/* Layer 2: Radiant bright lime center core (easily visible luminous spotlight) */
+/* Layer 2: Concentrated core with muted olive (#596B2B) and subtle hint of lime (#B5D94C) */
 .vs-glow-core {
   position: absolute;
-  width: 650px;
-  height: 650px;
+  width: 280px;
+  height: 280px;
   border-radius: 50%;
   background: radial-gradient(
     circle at 50% 50%,
-    rgba(225, 255, 100, 0.95) 0%,
-    rgba(181, 217, 76, 0.82) 25%,
-    rgba(145, 185, 50, 0.52) 50%,
-    rgba(89, 107, 43, 0.22) 72%,
+    rgba(181, 217, 76, 0.45) 0%,
+    rgba(89, 107, 43, 0.50) 40%,
+    rgba(89, 107, 43, 0.18) 70%,
     transparent 85%
   );
-  filter: blur(40px);
+  filter: blur(35px);
 }
 
 @media (prefers-reduced-motion: reduce) {
