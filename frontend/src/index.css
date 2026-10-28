@@ -1,7 +1,7 @@
 :root {
   --bg-page: #0B0D0B;
-  --bg-card: #121512;
-  --bg-surface: #191D19;
+  --bg-card: rgba(18, 21, 18, 0.78);
+  --bg-surface: rgba(25, 29, 25, 0.82);
   --border-color: #292F29;
   --border-subtle: #1c211c;
 
@@ -96,6 +96,8 @@ code, pre {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   position: relative;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 /* Button Variants */

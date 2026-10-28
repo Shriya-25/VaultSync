@@ -6,6 +6,7 @@ import FileUpload from './components/FileUpload';
 import FileTable from './components/FileTable';
 import DemoFlow from './components/DemoFlow';
 import OperationResult from './components/OperationResult';
+import AmbientGlow from './components/AmbientGlow';
 import { apiService } from './services/api';
 
 import './App.css';
@@ -92,6 +93,9 @@ export default function App() {
 
   return (
     <div className="vs-app-layout">
+      {/* Cursor-following ambient color glow background */}
+      <AmbientGlow />
+
       <div className="vs-app-container">
         {/* Top Header */}
         <Header

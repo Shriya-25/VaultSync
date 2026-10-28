@@ -985,3 +985,93 @@
     padding: 4px 0;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Ambient Cursor Glow (Fluid Background Spotlight - High Luminance & Visibility)
+   -------------------------------------------------------------------------- */
+.vs-ambient-glow-wrapper {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+  contain: strict;
+}
+
+/* 1. Static atmospheric background glow */
+.vs-static-ambient-glow {
+  position: absolute;
+  top: 15%;
+  left: 50%;
+  width: 1300px;
+  height: 750px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(181, 217, 76, 0.48) 0%,
+    rgba(145, 185, 50, 0.32) 30%,
+    rgba(89, 107, 43, 0.18) 55%,
+    rgba(35, 43, 20, 0.08) 75%,
+    transparent 90%
+  );
+  filter: blur(80px);
+  pointer-events: none;
+}
+
+/* 2. Fluid cursor-following spotlight container */
+.vs-cursor-glow-spotlight {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1200px;
+  height: 1200px;
+  pointer-events: none;
+  will-change: transform, opacity;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Layer 1: Wide circular aura with rich diffusion */
+.vs-glow-aura {
+  position: absolute;
+  width: 1200px;
+  height: 1200px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(181, 217, 76, 0.68) 0%,
+    rgba(150, 195, 55, 0.48) 28%,
+    rgba(89, 107, 43, 0.28) 55%,
+    rgba(35, 43, 20, 0.12) 75%,
+    transparent 88%
+  );
+  filter: blur(70px);
+}
+
+/* Layer 2: Radiant bright lime center core (easily visible luminous spotlight) */
+.vs-glow-core {
+  position: absolute;
+  width: 650px;
+  height: 650px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(225, 255, 100, 0.95) 0%,
+    rgba(181, 217, 76, 0.82) 25%,
+    rgba(145, 185, 50, 0.52) 50%,
+    rgba(89, 107, 43, 0.22) 72%,
+    transparent 85%
+  );
+  filter: blur(40px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vs-cursor-glow-spotlight {
+    display: none;
+  }
+}
+
+
