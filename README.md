@@ -151,52 +151,47 @@ If you prefer running each service in a dedicated terminal window:
 
 ---
 
-## 7. Two-to-Three-Minute Viva Demonstration Script
+## 7. System Walkthrough & UI Screenshots
 
-Follow this sequence during your project evaluation:
+The VaultSync web dashboard (`http://localhost:5173`) provides an interactive control plane for monitoring cluster topology, file replication, fault injection, transparent failover, and automated self-healing.
 
-1. **Cluster Overview & Live Heartbeats:**
-   - Open `http://localhost:5173`.
-   - Point out **Storage Node A** and **Storage Node B** cards showing `HEALTHY` with live heartbeats updating every 5 seconds.
-2. **File Upload & Synchronous Replication:**
-   - Drag & drop or select any document (or click "Upload File" on the sample report).
-   - Point out the generated cryptographic SHA-256 hash.
-   - Show the file table entry reporting `status: REPLICATED` with both `Node A` and `Node B` badges green (`AVAILABLE`).
-   - Open file explorer: verify physical copies exist in both `backend/storage/node-a/` and `backend/storage/node-b/`.
-3. **Fault Injection (Node Failure):**
-   - Click **"Simulate Failure"** on Node B (or terminate the Node B process in PowerShell).
-   - Within 10 seconds, the coordinator heartbeat monitor marks Node B as `UNAVAILABLE`.
-   - The file table badge updates to `DEGRADED`, proving the system detects failure and alerts the operator.
-4. **Fault-Tolerant Failover Retrieval:**
-   - Click **"Download"** or **"Recover & Verify"** for the degraded file while Node B is down.
-   - The coordinator transparently retrieves the file from surviving **Node A**, recalculates the SHA-256 hash, confirms it matches the original digest, and serves the file intact (`X-Retrieved-From-Node: Node A`).
-5. **Self-Healing & Automated Replica Repair:**
-   - Click **"Restore Node"** on Node B (or restart the Node B process).
-   - Node B reconnects and sends its heartbeat.
-   - The coordinator detects the recovery (`NODE_RECOVERED`) and automatically triggers `ReplicaRepairService`.
-   - The missing replica is copied from Node A to Node B, verified with SHA-256, and the file status returns to `REPLICATED`.
-6. **Audit History Verification:**
-   - Review recent activity in the operations log or call `GET http://localhost:8080/api/operations` to demonstrate persistent logging of each lifecycle event.
+### 7.1 Real-Time Cluster Health & Node Heartbeat Monitoring
+![Cluster Health & Node Monitoring](docs/screenshots/01-cluster-health-monitoring.png)
+
+- **Coordinator Overview:** Displays active HTTP coordinator status on port `8080`, live PostgreSQL 18 connection state on port `5432`, and the background heartbeat monitor configuration.
+- **Node Health Cards:** Dedicated panels for **Storage Node A** (`8081`) and **Storage Node B** (`8082`) showing live status badges (`HEALTHY`), physical storage directory paths, resident replica counts, and last heartbeat timestamps updating in real time every 5 seconds.
+- **Interactive Controls:** Includes one-click fault-injection buttons (*"Simulate Node Crash"*) and manual probing actions for live demonstration.
 
 ---
 
-## 8. Viva Q&A / DCS Defense Guide
+### 7.2 File Upload & Synchronous Multi-Node Replication
+![File Upload and Replication](docs/screenshots/02-file-upload-and-replication.png)
 
-**Q1: Why is SHA-256 computed on the backend rather than the client?**  
-*Answer:* The coordinator serves as the authoritative source of truth. Computing the SHA-256 digest on incoming raw bytes guarantees that network transmission anomalies or client spoofing cannot corrupt stored metadata, enabling end-to-end data integrity verification upon recovery.
-
-**Q2: How does the system handle split-brain or network partitions?**  
-*Answer:* VaultSync utilizes a primary coordinator with registered storage nodes. Node health is determined via active heartbeats and probes. In the event of a single-node failure, the coordinator degrades the replica state rather than accepting conflicting diverged writes, preserving read consistency.
-
-**Q3: How are race conditions prevented during automated repair?**  
-*Answer:* `ReplicaRepairService` maintains a thread-safe `ConcurrentHashMap` of active repair job IDs. If multiple recovery events occur simultaneously, only one worker can repair a specific file at any given moment, preventing duplicate file writes or orphan database rows.
-
-**Q4: What happens if both Node A and Node B fail simultaneously?**  
-*Answer:* As outlined in the PRD scope, simultaneous total loss of all storage replicas results in an honest failure report (`status: FAILED`), returning HTTP 503 Service Unavailable with an explanation rather than a false positive.
+- **Drag-and-Drop Ingestion:** Files uploaded via the web interface or REST API are synchronously streamed to both Storage Node A and Storage Node B before confirmation.
+- **Cryptographic Verification (SHA-256):** The coordinator computes a 256-bit SHA-256 digest directly from the incoming byte stream and stores it as the canonical checksum in PostgreSQL.
+- **Replication Status:** Files achieve `REPLICATED` status only after both worker nodes acknowledge successful disk writes. Green node badges (`✓ Node A`, `✓ Node B`) confirm physical copy existence.
 
 ---
 
-## 9. REST API Reference
+### 7.3 Fault Injection, Heartbeat Timeout & DEGRADED Status
+![Node Failure and Degraded State](docs/screenshots/03-node-failure-degraded-state.png)
+
+- **Heartbeat Timeout Detection:** When Storage Node B is terminated or simulated as failed, the coordinator's background monitor detects missed heartbeats and marks Node B as `UNAVAILABLE` after the 10-second threshold.
+- **Graceful Degradation:** The cluster immediately transitions affected files to `DEGRADED` status with an amber warning badge, reflecting that only one active replica remains.
+- **Transparent Read Failover:** Client download and verification requests automatically bypass the crashed node and stream bytes from the healthy surviving replica (**Node A**), maintaining 100% read availability with zero client-side exceptions.
+
+---
+
+### 7.4 Self-Healing Replica Repair & Operational Audit Log
+![Self-Healing and Audit Trail](docs/screenshots/04-self-healing-and-audit-logs.png)
+
+- **Autonomous Self-Healing:** Once Node B recovers and re-establishes heartbeat communication, the coordinator automatically triggers `ReplicaRepairService`.
+- **Donor Re-Replication:** The missing replica is fetched from surviving donor Node A, written to Node B, and verified against the canonical SHA-256 checksum before promoting the file status back to `REPLICATED`.
+- **PostgreSQL Audit Trail:** The live audit log table streams recent events directly from PostgreSQL's `operation_logs` table, recording timestamps, operation types (`NODE_FAILURE`, `FAILOVER_READ`, `NODE_RECOVERED`, `REPLICA_REPAIR`), and integrity outcomes.
+
+---
+
+## 8. REST API Reference
 
 ### Coordinator Endpoints (Port 8080)
 - `GET /api/health` — Coordinator health and PostgreSQL database status.
