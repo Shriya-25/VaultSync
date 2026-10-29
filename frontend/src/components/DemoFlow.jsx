@@ -1,6 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 export default function DemoFlow() {
+  const [animKey, setAnimKey] = useState(0);
+
+  const replay = () => {
+    setAnimKey((prev) => prev + 1);
+  };
+
   const steps = [
     {
       num: '1',
@@ -56,20 +62,42 @@ export default function DemoFlow() {
       {/* Panel Header */}
       <div className="vs-panel-header">
         <div className="vs-panel-title vs-flow-title-group">
-          {/* Lime Lightning Icon */}
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B5D94C" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-          </svg>
+          {/* Lime Lightning Icon with subtle glow */}
+          <div className="vs-flow-icon-pulse">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B5D94C" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            </svg>
+          </div>
           <span className="vs-flow-heading">DEMO FLOW</span>
           <span className="vs-flow-sub-text">Run the complete DCS workflow in 4 simple steps.</span>
         </div>
+
+        {/* Replay Animation Trigger */}
+        <button
+          type="button"
+          className="vs-flow-replay-btn"
+          onClick={replay}
+          title="Click to replay left-to-right flow sequence"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="1 4 1 10 7 10"></polyline>
+            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+          </svg>
+          <span>Replay Flow</span>
+        </button>
       </div>
 
-      {/* 4 Step Strip */}
-      <div className="vs-flow-steps-strip">
+      {/* 4 Step Strip with Sequenced Left-to-Right Animation */}
+      <div className="vs-flow-steps-strip" key={animKey}>
         {steps.map((step, idx) => (
           <React.Fragment key={step.num}>
-            <div className="vs-step-card">
+            <div
+              className={`vs-step-card vs-step-card-${idx + 1}`}
+              style={{
+                '--entrance-delay': `${idx * 0.28 + 0.1}s`,
+                '--loop-delay': `${idx * 1.5 + 2.2}s`,
+              }}
+            >
               <div className="vs-step-num-circle">{step.num}</div>
               <div className="vs-step-icon-wrap">{step.icon}</div>
               <div className="vs-step-info">
@@ -79,8 +107,14 @@ export default function DemoFlow() {
             </div>
 
             {idx < steps.length - 1 && (
-              <div className="vs-step-arrow">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3A433A" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <div
+                className={`vs-step-arrow vs-step-arrow-${idx + 1}`}
+                style={{
+                  '--entrance-delay': `${idx * 0.28 + 0.24}s`,
+                  '--loop-delay': `${idx * 1.5 + 2.9}s`,
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="5" y1="12" x2="19" y2="12"></line>
                   <polyline points="12 5 19 12 12 19"></polyline>
                 </svg>

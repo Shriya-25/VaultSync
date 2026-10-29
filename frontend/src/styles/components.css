@@ -746,16 +746,35 @@
 }
 
 /* --------------------------------------------------------------------------
-   Demo Flow Strip (4 Steps)
+   Demo Flow Strip (4 Steps with Left-to-Right Animated Progression)
    -------------------------------------------------------------------------- */
 .vs-flow-panel {
   padding: 16px 20px;
+  overflow: hidden;
 }
 
 .vs-flow-title-group {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.vs-flow-icon-pulse {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: vsLightningPulse 2.5s infinite ease-in-out;
+}
+
+@keyframes vsLightningPulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 0px rgba(181, 217, 76, 0));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 6px rgba(181, 217, 76, 0.7));
+    transform: scale(1.12);
+  }
 }
 
 .vs-flow-heading {
@@ -771,14 +790,49 @@
   font-weight: 400;
 }
 
+.vs-flow-replay-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.vs-flow-replay-btn:hover {
+  background-color: #232923;
+  color: var(--primary-accent);
+  border-color: var(--primary-border);
+  transform: translateY(-1px);
+}
+
+.vs-flow-replay-btn:active {
+  transform: translateY(0);
+}
+
+.vs-flow-replay-btn svg {
+  transition: transform 0.4s ease;
+}
+
+.vs-flow-replay-btn:hover svg {
+  transform: rotate(-180deg);
+}
+
 .vs-flow-steps-strip {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
+/* Staggered sequential appearance from left to right */
 .vs-step-card {
   flex: 1;
   background-color: var(--bg-surface);
@@ -788,6 +842,43 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  position: relative;
+  cursor: pointer;
+  
+  /* Initial entrance + subsequent cyclic flow */
+  animation: 
+    vsStepSlideIn 0.65s cubic-bezier(0.16, 1, 0.3, 1) var(--entrance-delay, 0s) both,
+    vsStepFlowLoop 6s ease-in-out var(--loop-delay, 2s) infinite;
+  
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.25s ease,
+              box-shadow 0.25s ease,
+              background-color 0.25s ease;
+}
+
+.vs-step-card:hover {
+  transform: translateY(-4px) scale(1.02) !important;
+  border-color: var(--primary-accent) !important;
+  background-color: #1f251f !important;
+  box-shadow: 0 10px 24px -4px rgba(181, 217, 76, 0.22) !important;
+  z-index: 2;
+}
+
+.vs-step-card:hover .vs-step-num-circle {
+  border-color: var(--primary-accent);
+  color: var(--primary-accent);
+  transform: scale(1.12);
+  box-shadow: 0 0 10px rgba(181, 217, 76, 0.35);
+}
+
+.vs-step-card:hover .vs-step-icon-wrap {
+  border-color: var(--primary-accent);
+  background-color: rgba(181, 217, 76, 0.1);
+  transform: scale(1.08) rotate(2deg);
+}
+
+.vs-step-card:hover .vs-step-title {
+  color: #FFFFFF;
 }
 
 .vs-step-num-circle {
@@ -803,6 +894,7 @@
   font-weight: 700;
   color: var(--text-main);
   flex-shrink: 0;
+  transition: all 0.25s ease;
 }
 
 .vs-step-icon-wrap {
@@ -815,6 +907,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  transition: all 0.25s ease;
 }
 
 .vs-step-info {
@@ -827,6 +920,7 @@
   font-weight: 700;
   color: var(--text-main);
   line-height: 1.2;
+  transition: color 0.2s ease;
 }
 
 .vs-step-desc {
@@ -841,6 +935,96 @@
   justify-content: center;
   color: #3A433A;
   flex-shrink: 0;
+  
+  /* Initial entrance + subsequent cyclic flow */
+  animation: 
+    vsArrowSlideIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) var(--entrance-delay, 0s) both,
+    vsArrowFlowLoop 6s ease-in-out var(--loop-delay, 2s) infinite;
+  
+  transition: color 0.25s ease, transform 0.25s ease;
+}
+
+/* --------------------------------------------------------------------------
+   Keyframe Animations for Sequential Flow (Left to Right)
+   -------------------------------------------------------------------------- */
+
+/* 1. Box Entrance: slides in from left with fade and subtle pop */
+@keyframes vsStepSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-36px) scale(0.92);
+  }
+  60% {
+    opacity: 0.95;
+    transform: translateX(3px) scale(1.01);
+    border-color: rgba(181, 217, 76, 0.45);
+    box-shadow: 0 4px 18px -2px rgba(181, 217, 76, 0.2);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+    border-color: var(--border-color);
+    box-shadow: none;
+  }
+}
+
+/* 2. Arrow Entrance: illuminates and points forward */
+@keyframes vsArrowSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-14px) scale(0.7);
+    color: #292F29;
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(2px) scale(1.15);
+    color: var(--primary-accent);
+    filter: drop-shadow(0 0 5px rgba(181, 217, 76, 0.5));
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+    color: #3A433A;
+    filter: none;
+  }
+}
+
+/* 3. Looping Flow Wave (Step Card): subtle recurring glow left-to-right */
+@keyframes vsStepFlowLoop {
+  0%, 80%, 100% {
+    border-color: var(--border-color);
+    box-shadow: none;
+    transform: translateY(0);
+  }
+  10% {
+    border-color: rgba(181, 217, 76, 0.65);
+    box-shadow: 0 4px 20px -2px rgba(181, 217, 76, 0.25);
+    transform: translateY(-2px);
+  }
+  20% {
+    border-color: var(--border-color);
+    box-shadow: none;
+    transform: translateY(0);
+  }
+}
+
+/* 4. Looping Flow Wave (Connecting Arrow): arrow beams forward */
+@keyframes vsArrowFlowLoop {
+  0%, 75%, 100% {
+    color: #3A433A;
+    transform: translateX(0);
+    filter: none;
+  }
+  12% {
+    color: var(--primary-accent);
+    transform: translateX(4px);
+    filter: drop-shadow(0 0 6px rgba(181, 217, 76, 0.6));
+  }
+  24% {
+    color: #3A433A;
+    transform: translateX(0);
+    filter: none;
+  }
 }
 
 /* --------------------------------------------------------------------------
